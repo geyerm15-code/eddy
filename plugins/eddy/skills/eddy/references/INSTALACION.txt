@@ -1,0 +1,192 @@
+======================================================================
+  EDDY — AGENTE DE VIDEO PARA CLAUDE
+  Instrucciones de instalación · versión 1.0.0
+======================================================================
+
+QUÉ ES EDDY
+-----------
+Eddy convierte un video tuyo hablando a cámara (grabado con el celular o
+teleprompter) en un Reel / TikTok / Short vertical 9:16 listo para publicar:
+
+  - Limpia la voz (ruido, eco, volumen parejo a -14 LUFS).
+  - Corta silencios, muletillas y tomas repetidas.
+  - Agrega animaciones sincronizadas con lo que dices: hook inicial,
+    tarjetas de pasos, datos que cuentan y llamado a la acción (CTA).
+  - Pone subtítulos animados con palabras clave resaltadas.
+  - Usa tu marca: colores, estilo y palabra del CTA.
+
+Eddy funciona en dos lugares. Elige uno (o ambos):
+
+  OPCIÓN A · Claude Code ...... calidad máxima (hasta 4K, animaciones 3D)
+  OPCIÓN B · claude.ai ........ más simple, en el navegador (1080p)
+
+
+CONTENIDO DE LA CARPETA
+-----------------------
+  eddy/
+  ├── INSTALACION.txt ........... este documento
+  ├── dist/eddy.zip ............. paquete para claude.ai (Opción B)
+  ├── build_zip.sh .............. regenera el zip si cambias algo
+  ├── .claude-plugin/ ........... marketplace para Claude Code (Opción A)
+  └── plugins/eddy/ ............. el agente (skill + subagente)
+
+
+======================================================================
+  OPCIÓN A · CLAUDE CODE (Mac, Windows o Linux)
+======================================================================
+
+Requisitos
+  - Claude Code instalado y con sesión iniciada en la cuenta destino.
+  - Espacio en disco: 5 GB libres mínimo (15 GB para exportar en 4K).
+
+Paso 1 · Copia la carpeta
+  Copia la carpeta "eddy" completa a la computadora destino, por ejemplo
+  al Escritorio. (USB, Google Drive, AirDrop o un repositorio de GitHub.)
+
+Paso 2 · Agrega el marketplace
+  Abre Claude Code y escribe:
+
+      /plugin marketplace add ~/Desktop/eddy
+
+  (Si la carpeta está en otro lugar, usa esa ruta. Si la subiste a GitHub:
+   /plugin marketplace add tu-usuario/eddy)
+
+Paso 3 · Instala a Eddy
+
+      /plugin install eddy@eddy
+
+  Cierra y vuelve a abrir Claude Code.
+
+Paso 4 · Instala las herramientas de video
+  Escríbele a Claude:
+
+      Eddy, revisa e instala lo que necesitas
+
+  Eddy instala ffmpeg, Python y los paquetes de transcripción (te pide
+  permiso antes). Para exportar en 4K con animaciones avanzadas pídele:
+  "instala también el motor 4K" (agrega Node.js).
+
+  Instalación manual (si prefieres hacerlo tú):
+    Mac ....... brew install ffmpeg node
+                pip3 install pillow numpy faster-whisper
+    Windows ... winget install Gyan.FFmpeg OpenJS.NodeJS.LTS
+                pip install pillow numpy faster-whisper
+    Linux ..... sudo apt install ffmpeg nodejs npm
+                pip install pillow numpy faster-whisper
+
+  (En Mac, si no tienes Homebrew: https://brew.sh)
+
+Paso 5 · Primer video
+  Arrastra tu video a Claude Code y escribe:
+
+      Eddy, hazme un reel con animaciones de este video
+
+  La primera vez Eddy te pregunta tu marca (colores, estilo, @usuario,
+  palabra del CTA) y la guarda en ~/.eddy/brand.json para los siguientes
+  videos.
+
+  Para que lo haga todo solo, sin preguntarte cada paso:
+
+      Usa el subagente eddy con ~/Downloads/mi-video.mov
+
+
+======================================================================
+  OPCIÓN B · CLAUDE.AI (web o app de escritorio)
+======================================================================
+
+Requisitos
+  - Plan de claude.ai con Skills disponibles (Pro, Max, Team o Enterprise).
+
+Paso 1 · Activa la ejecución de código
+  claude.ai → Ajustes → Capacidades →
+  activa "Ejecución de código y creación de archivos".
+
+Paso 2 · Sube a Eddy
+  En la misma sección, en "Skills", pulsa "Subir skill" y elige:
+
+      dist/eddy.zip
+
+  Verifica que "eddy" aparezca activada.
+
+Paso 3 · Primer video
+  Abre un chat nuevo, adjunta tu video y escribe:
+
+      Eddy, edita este video como reel con subtítulos y animaciones
+
+  Recomendado: videos de 15 a 90 segundos (el entorno de claude.ai tiene
+  límites de tiempo y espacio).
+
+Paso 4 · Guarda tu marca
+  claude.ai no recuerda archivos entre chats. La primera vez Eddy te
+  entrega un archivo "brand.json": descárgalo y adjúntalo junto con cada
+  video nuevo para que use siempre tus colores.
+
+  Alternativa: abre eddy.zip, reemplaza brand.json con el tuyo, vuelve a
+  comprimir la carpeta "eddy" y sube de nuevo la skill.
+
+Diferencias con la Opción A
+  En claude.ai Eddy usa el motor "lite": hook, tarjetas de pasos, datos,
+  CTA y subtítulos animados en 1080p. Las escenas 3D, partículas y la
+  exportación 4K solo están en Claude Code.
+
+
+======================================================================
+  TRANSCRIPCIÓN (cómo Eddy "escucha" el video)
+======================================================================
+Eddy elige automáticamente la primera opción disponible:
+
+  1. ElevenLabs (nube, la más precisa): define la variable de entorno
+     ELEVENLABS_API_KEY con tu clave de https://elevenlabs.io
+  2. Whisper local (gratis, sin internet tras la 1.ª descarga del modelo).
+  3. Tu guion: si no hay ninguna de las anteriores, entrega el texto que
+     leíste en el teleprompter (archivo .txt) y Eddy lo alinea con la voz.
+     Es menos preciso (±0,3 s).
+
+
+======================================================================
+  PERSONALIZAR LA MARCA
+======================================================================
+Pídeselo a Eddy ("Eddy, configura mi marca") o edita brand.json:
+
+  name / handle ....... nombre y @usuario
+  style ............... "editorial" (claro, serif, elegante) o
+                        "tech" (oscuro, tipo terminal, líneas finas)
+  colors.accent ....... color principal en hex (ej. "#2f6bff")
+  tech.accent ......... color de acento del estilo tech
+  cta.word ............ palabra que pides comentar (ej. "GUIA")
+  captions.keywords ... palabras que se resaltan en los subtítulos
+  fonts ............... archivos de fuente (en ~/.eddy/fonts/ los tuyos)
+  export.scale ........ 2 = 4K, 1 = 1080p
+
+Todas las fuentes incluidas son libres (SIL Open Font License).
+
+
+======================================================================
+  ACTUALIZAR O DESINSTALAR
+======================================================================
+Claude Code
+  Actualizar ..... reemplaza la carpeta eddy y escribe
+                   /plugin marketplace update eddy
+  Desinstalar .... /plugin uninstall eddy@eddy
+
+claude.ai
+  Actualizar ..... borra la skill "eddy" y sube el nuevo eddy.zip
+  Desinstalar .... Ajustes → Capacidades → Skills → eliminar "eddy"
+
+
+======================================================================
+  SOLUCIÓN DE PROBLEMAS
+======================================================================
+  "falta ffmpeg" ............ pídele a Eddy que lo instale, o instálalo
+                              manualmente (Paso 4 de la Opción A).
+  "sin motor de transcripción" instala faster-whisper, define
+                              ELEVENLABS_API_KEY o entrega tu guion .txt.
+  El render 4K se detiene ... revisa el espacio en disco (15 GB libres);
+                              o pide exportar en 1080p.
+  Eddy no aparece ........... reinicia Claude Code; en claude.ai verifica
+                              que la skill esté activada y la ejecución
+                              de código encendida.
+  Diagnóstico completo ...... "Eddy, corre el doctor" (revisa ffmpeg,
+                              Node, Whisper, disco y motor recomendado).
+
+======================================================================

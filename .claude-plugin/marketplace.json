@@ -1,0 +1,17 @@
+{
+  "name": "eddy",
+  "owner": {
+    "name": "Geyer Rivadeneira"
+  },
+  "plugins": [
+    {
+      "name": "eddy",
+      "source": "./plugins/eddy",
+      "description": "Talking head → Reel 9:16 con motion graphics, subtítulos y marca configurable."
+    }
+  ],
+  "metadata": {
+    "description": "Agente de video para Claude Code: talking head → Reel con motion graphics y subtítulos.",
+    "version": "1.0.0"
+  }
+}

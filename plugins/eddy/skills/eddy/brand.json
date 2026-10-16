@@ -1,0 +1,51 @@
+{
+  "_doc": "Identidad visual del agente de video. Edítalo (o pídele a Claude: 'configura mi marca'). Colores en hex, fuentes = archivos dentro de fonts/.",
+  "name": "Mi Marca",
+  "handle": "@mimarca",
+  "language": "es",
+  "style": "editorial",
+  "colors": {
+    "paper": "#eeeae4",
+    "ink": "#141210",
+    "dark": "#0e0d0c",
+    "card": "#1a1817",
+    "border": "#2c2926",
+    "accent": "#2f6bff",
+    "accent2": "#2f6bff",
+    "ok": "#3fae6a",
+    "muted": "#8a847c"
+  },
+  "tech": {
+    "bg0": "#020c05",
+    "bg1": "#0f1b12",
+    "bg2": "#203126",
+    "bg3": "#34453a",
+    "text": "#eef4ea",
+    "accent": "#cfdc9f",
+    "line": "#c8d8c8",
+    "dim": "#55665c",
+    "kicker": "#a9b5ad",
+    "bad": "#dc927a",
+    "caption": "#f2f6f0"
+  },
+  "fonts": {
+    "display": "PlayfairDisplay-ExtraBold.ttf",
+    "accent": "InstrumentSerif-Italic.ttf",
+    "wide": "Unbounded.ttf",
+    "head": "InterTight.ttf",
+    "body": "Inter.ttf",
+    "mono": "JetBrainsMono.ttf"
+  },
+  "captions": {
+    "keywords": [],
+    "uppercase": false
+  },
+  "cta": {
+    "word": "GUIA",
+    "line": "Comenta GUIA y te la envío"
+  },
+  "export": {
+    "scale": 2,
+    "out_fps": 30
+  }
+}

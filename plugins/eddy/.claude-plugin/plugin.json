@@ -1,0 +1,9 @@
+{
+  "name": "eddy",
+  "version": "1.0.0",
+  "description": "Agente de video: talking head → Reel/Short 9:16 con voz limpia, cortes automáticos, motion graphics sincronizados a la voz y subtítulos cinéticos, con marca configurable.",
+  "author": {
+    "name": "Geyer Rivadeneira"
+  },
+  "keywords": ["video", "reels", "remotion", "ffmpeg", "subtitulos", "motion-graphics"]
+}
