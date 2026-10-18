@@ -29,6 +29,13 @@ Luego arrastra tu video: `Eddy, hazme un reel con animaciones de este video`.
 
 Requiere plan Pro, Max, Team o Enterprise. Recomendado: videos de 15 a 90 s.
 
+## Analizar un video → prompt de Omni Flash
+
+Sube un video de referencia (motion graphics, demo, explainer) y pide:
+`Eddy, analiza este video y hazme el prompt de Omni Flash`. Eddy lo desglosa cuadro por cuadro
+(cámara, tipografía, colores, iconos, transiciones, audio) y te entrega un prompt listo para pegar,
+con tu marca, colores o textos si se los indicas.
+
 ## Más información
 
 Guía completa (transcripción, personalizar marca, actualizar, solución de problemas): [INSTALACION.txt](INSTALACION.txt).
