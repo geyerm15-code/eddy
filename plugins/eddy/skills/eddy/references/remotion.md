@@ -23,6 +23,9 @@ contenido, conserva la coreografía.
 Timing: un insert dura lo que la idea hablada (5–9 s) y empieza ~0.1 s antes de su palabra. Los paneles entran
 en 14 frames y salen en los últimos 13. El hook puede extenderse hasta el primer insert (el insert lo tapa).
 
+Además: `"kind": "behind"` (detrás de la persona, requiere `studio.py matte`) y `"opaque": true` (inserts sin
+alfa → H.264, mucho menos disco). Efectos sobre la persona: `references/efectos.md` (`effects.tsx`).
+
 ## Estilo editorial (`lib.tsx`)
 
 Colores de `brand.colors`: `PAPER` `INK` `DARK` `CARD` `BORDER`, **`ACCENT`/`VERM` = único acento**, `GREEN` (= ok,

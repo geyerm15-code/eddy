@@ -72,27 +72,29 @@ export const shake = (f: number, at: number, dur = 10, amp = 14) => {
 };
 
 // ---------- fonts ----------
-// rango de peso 100–900 en cada cara: el navegador nunca sintetiza negritas falsas
+// FontFace API directo, rango de peso 100–900 en cada cara (el navegador nunca sintetiza negritas falsas).
+// No usar document.fonts.check: con fuentes variables o itálicas da falsos fallos y cancela el render.
 const F = brand.fonts;
-const fontCss = `
-@font-face { font-family: 'Display'; src: url('${staticFile(F.display)}'); font-weight: 100 900; }
-@font-face { font-family: 'Accent'; src: url('${staticFile(F.accent)}'); font-weight: 100 900; font-style: italic; }
-@font-face { font-family: 'Wide'; src: url('${staticFile(F.wide)}'); font-weight: 100 900; }
-`;
+let fontsP: Promise<void> | null = null;
+const loadFonts = () =>
+  (fontsP ??= Promise.all(
+    ([
+      ['Display', F.display, {weight: '100 900'}],
+      ['Accent', F.accent, {weight: '100 900', style: 'italic'}],
+      ['Wide', F.wide, {weight: '100 900'}],
+    ] as [string, string, FontFaceDescriptors][]).map(async ([fam, file, desc]) => {
+      const ff = new FontFace(fam, `url(${staticFile(file)})`, desc);
+      await ff.load();
+      document.fonts.add(ff);
+    }),
+  ).then(() => undefined));
 
 export const Fonts: React.FC = () => {
   const [handle] = useState(() => delayRender('fonts'));
   useEffect(() => {
-    const specs = ['800 80px "Display"', 'italic 600 80px "Accent"', '900 80px "Wide"', '500 80px "Wide"'];
-    Promise.all(specs.map((s) => document.fonts.load(s)))
-      .then(() => document.fonts.ready)
-      .then(() => {
-        for (const s of specs) if (!document.fonts.check(s)) throw new Error(`font failed: ${s}`);
-        continueRender(handle);
-      })
-      .catch((e) => cancelRender(e));
+    loadFonts().then(() => continueRender(handle)).catch((e) => cancelRender(e));
   }, [handle]);
-  return <style>{fontCss}</style>;
+  return null;
 };
 
 // ---------- kinetic letters ----------

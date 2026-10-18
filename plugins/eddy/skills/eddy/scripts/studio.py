@@ -10,9 +10,11 @@ Todo se configura en studio.json (proyecto) + brand.json (identidad visual). Com
   python3 studio.py words                    # palabras en la línea de tiempo FINAL + frame local por overlay
   python3 studio.py captions                 # -> animations/src/captions.json (cues de subtítulos)
   python3 studio.py base [--reuse]           # cortes + reencuadre 9:16 + punch-in -> base.mov
+  python3 studio.py matte                    # recorta a la persona (hyperframes) -> matte/fg.webm + public/base.mp4
+                                             #   (necesario para overlays kind "behind" y efectos de vidrio)
   --- motor "remotion" (Claude Code, máxima calidad) ---
   python3 studio.py stills ID f1 f2 ...      # stills de la escena ID sobre el video -> verify/sheet_ID.jpg
-  python3 studio.py anim [ID ...]            # escenas Remotion (ProRes 4444 con alfa) -> animations/out/ID.mov
+  python3 studio.py anim [ID ...]            # escenas Remotion (ProRes 4444 con alfa; "opaque": H.264) -> animations/out/
   python3 studio.py capt                     # capa de subtítulos -> animations/out/captions.mov
   python3 studio.py final                    # base + escenas + subtítulos + loudnorm -> final.mp4
   --- motor "lite" (claude.ai o sin Node: Python + Pillow, sin navegador) ---
@@ -50,7 +52,9 @@ FACE_Y = CFG.get("face_y", 780)  # centro de la cara en el frame de diseño 1080
 GRADE = CFG.get("grade", "")
 STYLE = CFG.get("style", BRAND.get("style", "editorial"))  # "editorial" | "tech"
 ENGINE = CFG.get("engine", "lite" if CLAUDE_AI else "remotion")
-CHUNK = {"editorial": (3, 16), "tech": (5, 26)}.get(STYLE, (3, 16))  # subtítulos: (máx palabras, máx caracteres)
+CHUNK = {"editorial": (3, 16), "tech": (5, 26)}.get(STYLE, (3, 16))
+if CFG.get("captions_mode") == "karaoke":
+    CHUNK = (6, 34)  # karaoke: frase corta arriba + palabra actual grande  # subtítulos: (máx palabras, máx caracteres)
 LANG = CFG.get("language", BRAND.get("language", "es"))
 FONTS = ROOT / "fonts"
 AUDIO_CHAIN = (
@@ -355,7 +359,8 @@ def cmd_captions():
                                 "key": w["text"].strip(",.!?¡¿").lower() in keys} for w in c]})
     p = ANIM / "src" / "captions.json"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps({"total": round(tot, 3), "style": STYLE, "cues": cues}, ensure_ascii=False, indent=1))
+    mode = CFG.get("captions_mode", BRAND.get("captions", {}).get("mode", STYLE))  # editorial | tech | karaoke
+    p.write_text(json.dumps({"total": round(tot, 3), "style": mode, "cues": cues}, ensure_ascii=False, indent=1))
     print(f"→ {p} ({len(cues)} cues)")
 
 
@@ -372,11 +377,20 @@ def cmd_base(reuse=False):
         if reuse and out.exists():
             continue
         d = e - s
-        w, h = round(W * z / 2) * 2, round(H * z / 2) * 2
-        y = max(0, min(h - H, round((FACE_Y * z - FACE_Y + 40 * (z > 1)) * K)))
-        # reencuadre a 9:16 sin deformar (sirve también para fuentes 16:9: recorta al centro)
-        vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,"
-              f"crop={W}:{H}:(iw-{W})/2:{y}" + (f",{GRADE}" if GRADE else "") + ",setsar=1")
+        if isinstance(z, (list, tuple)):
+            # zoom animado [desde, hasta] a lo largo del tramo (cover story 1.05→1.0, zoom out, push-in lento)
+            z0, z1 = z
+            zt = f"({z0}+({z1}-{z0})*(1-cos(PI*min(t/{d:.3f},1)))/2)"
+            vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,"
+                  f"scale=w='trunc({W}*{zt}/2)*2':h='trunc({H}*{zt}/2)*2':eval=frame:flags=bicubic,"
+                  f"crop={W}:{H}:(iw-{W})/2:'max(0,min(ih-{H},{FACE_Y * K}*ih/{H}-{FACE_Y * K}))'")
+        else:
+            w, h = round(W * z / 2) * 2, round(H * z / 2) * 2
+            y = max(0, min(h - H, round((FACE_Y * z - FACE_Y + 40 * (z > 1)) * K)))
+            # reencuadre a 9:16 sin deformar (sirve también para fuentes 16:9: recorta al centro)
+            vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,"
+                  f"crop={W}:{H}:(iw-{W})/2:{y}")
+        vf += (f",{GRADE}" if GRADE else "") + ",setsar=1"
         audio = CLEAN if CLEAN.exists() else SRC
         run(ff("-y", "-ss", f"{s:.3f}", "-i", str(SRC), "-ss", f"{s:.3f}", "-i", str(audio),
                "-t", f"{d:.3f}", "-map", "0:v:0", "-map", "1:a:0", "-vf", vf,
@@ -387,6 +401,42 @@ def cmd_base(reuse=False):
     lst.write_text("".join(f"file '{p}'\n" for p in segs))
     run(ff("-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(ROOT / "base.mov")))
     print(f"→ base.mov {total():.2f}s")
+
+
+# ---------- recorte de la persona (para overlays "behind" y vidrio) ----------
+
+MATTE = ROOT / "matte" / "fg.webm"
+
+
+def cmd_matte():
+    """Recorta a la persona de base.mov con IA local (npx hyperframes remove-background).
+    matte/fg.webm (1080p con alfa) da la máscara que en `final` pone a la persona DELANTE de los overlays "behind";
+    animations/public/base.mp4 (1080p 30 fps) es el video que las escenas usan para vidrio esmerilado (<Frosted>,
+    <GlassType>). Se corre una vez después de `base` (y de nuevo si cambian los cortes)."""
+    base = ROOT / "base.mov"
+    if not base.exists():
+        sys.exit("! primero corre `base`")
+    (ROOT / "matte").mkdir(exist_ok=True)
+    (ANIM / "public").mkdir(parents=True, exist_ok=True)
+    proxy = ANIM / "public" / "base.mp4"
+    run(ff("-y", "-i", str(base), "-an", "-vf", "scale=1080:1920:flags=lanczos,fps=30", "-c:v", "libx264", "-crf", "16",
+           "-g", "15", "-pix_fmt", "yuv420p", str(proxy)))
+    print("  recortando a la persona (la primera vez descarga el modelo, ~1–3 min por cada 10 s de video)…")
+    run(["npx", "-y", "hyperframes", "remove-background", str(proxy), "-o", str(MATTE), "--quality", "best"])
+    print(f"→ {MATTE} + {proxy}")
+
+
+def behind_windows():
+    return [(o["start"], o["start"] + o["dur"]) for o in CFG["overlays"] if o.get("kind") == "behind"]
+
+
+def layer_file(stem):
+    """Archivo renderizado de una capa: .mov (alfa), .mp4 (opaca) o .webm (alfa liviano)."""
+    for ext in (".mov", ".mp4", ".webm"):
+        q = ANIM / "out" / f"{stem}{ext}"
+        if q.exists():
+            return q
+    return ANIM / "out" / f"{stem}.mov"
 
 
 # ---------- motor remotion ----------
@@ -406,8 +456,11 @@ def remotion(args):
     run(["npx", "remotion", *args, "--log=error", *(["--browser-executable", br] if br else [])], cwd=ANIM, quiet=False)
 
 
+CONC = f"--concurrency={max(1, min(6, (os.cpu_count() or 4) - 2))}"
 PRORES = [f"--scale={K}", "--codec=prores", "--prores-profile=4444", "--pixel-format=yuva444p10le",
-          "--image-format=png", f"--concurrency={max(1, min(8, (os.cpu_count() or 4) - 2))}"]
+          "--image-format=png", CONC]
+# escenas opacas (inserts a pantalla completa, "opaque": true): H.264 casi sin pérdida, ~50× menos disco que ProRes
+OPAQUE = [f"--scale={K}", "--codec=h264", "--crf=12", CONC]
 
 
 def cmd_anim(ids):
@@ -415,7 +468,14 @@ def cmd_anim(ids):
     for ov in CFG["overlays"]:
         if ids and ov["id"] not in ids:
             continue
-        remotion(["render", "src/index.ts", ov["id"], f"out/{ov['id']}.mov", *PRORES])
+        if ov.get("kind") == "behind" and not MATTE.exists():
+            sys.exit(f"! la escena {ov['id']} es kind \"behind\": corre `matte` antes")
+        for ext in (".mov", ".mp4", ".webm"):
+            (ANIM / "out" / f"{ov['id']}{ext}").unlink(missing_ok=True)
+        if ov.get("opaque"):
+            remotion(["render", "src/index.ts", ov["id"], f"out/{ov['id']}.mp4", *OPAQUE])
+        else:
+            remotion(["render", "src/index.ts", ov["id"], f"out/{ov['id']}.mov", *PRORES])
 
 
 def cmd_capt():
@@ -431,9 +491,22 @@ def cmd_stills(sid, frames):
         png = ANIM / "stills" / f"{sid}_{fr}.png"
         remotion(["still", "src/index.ts", sid, str(png), f"--frame={fr}"])
         bg = ANIM / "stills" / f"_bg_{i}.png"
-        run(ff("-y", "-ss", f"{ov['start'] + int(fr) / FPS:.3f}", "-i", str(ROOT / "base.mov"), "-frames:v", "1", str(bg)))
-        ins += ["-i", str(bg), "-i", str(png)]
-        fc += f"[{2 * i}]scale=1080:1920[b{i}];[{2 * i + 1}]scale=1080:1920[o{i}];[b{i}][o{i}]overlay,scale=432:768[c{i}];"
+        ts = f"{ov['start'] + int(fr) / FPS:.3f}"
+        run(ff("-y", "-ss", ts, "-i", str(ROOT / "base.mov"), "-frames:v", "1", str(bg)))
+        if ov.get("kind") == "behind" and MATTE.exists():
+            # la persona recortada va ENCIMA de la escena, como en el final
+            fgp = ANIM / "stills" / f"_fg_{i}.png"
+            run(ff("-y", "-c:v", "libvpx-vp9", "-ss", ts, "-i", str(MATTE), "-frames:v", "1", "-pix_fmt", "rgba", str(fgp)))
+            tmp = ANIM / "stills" / f"_mix_{i}.png"
+            run(ff("-y", "-i", str(bg), "-i", str(png), "-i", str(fgp), "-filter_complex",
+                   "[0]scale=1080:1920[b];[1]scale=1080:1920[o];[2]scale=1080:1920[p];[b][o]overlay[x];[x][p]overlay", str(tmp)))
+            png, bg = tmp, None
+        if bg is None:
+            ins += ["-i", str(png), "-f", "lavfi", "-i", "color=c=black@0:s=2x2,format=rgba"]
+            fc += f"[{2 * i}]scale=1080:1920[b{i}];[b{i}]scale=432:768[c{i}];"
+        else:
+            ins += ["-i", str(bg), "-i", str(png)]
+            fc += f"[{2 * i}]scale=1080:1920[b{i}];[{2 * i + 1}]scale=1080:1920[o{i}];[b{i}][o{i}]overlay,scale=432:768[c{i}];"
     out = ROOT / "verify" / f"sheet_{sid}.jpg"
     lbl = "".join(f"[c{i}]" for i in range(len(frames)))
     run(ff("-y", *ins, "-filter_complex", f"{fc}{lbl}hstack={len(frames)}" if len(frames) > 1 else f"{fc}{lbl}null", str(out)))
@@ -459,12 +532,32 @@ def encode_args():
 def cmd_final():
     base = ROOT / "base.mov"
     inputs, fg, last = ["-i", str(base)], [], "[0:v]"
-    layers = [(ANIM / "out" / f"{o['id']}.mov", o["start"], o["dur"]) for o in CFG["overlays"]]
-    layers.append((ANIM / "out" / "captions.mov", 0.0, total()))  # subtítulos AL FINAL, encima de todo
+    ovs = CFG["overlays"]
+    # orden de capas: 1) "behind" (detrás de la persona) 2) la persona recortada 3) el resto 4) subtítulos
+    layers = [(layer_file(o["id"]), o["start"], o["dur"]) for o in ovs if o.get("kind") == "behind"]
+    person = bool(layers) and MATTE.exists()
+    if layers and not person:
+        print("  ! hay escenas \"behind\" pero falta matte/fg.webm (corre `matte`): quedarán delante de la persona")
+    split = len(layers)
+    layers += [(layer_file(o["id"]), o["start"], o["dur"]) for o in ovs if o.get("kind") != "behind"]
+    layers.append((layer_file("captions"), 0.0, total()))  # subtítulos AL FINAL, encima de todo
+    if person:
+        fg.append(f"[0:v]split[base0][base1]")
+        last = "[base0]"
     for k, (p, t, d) in enumerate(layers, start=1):
+        if person and k == split + 1:
+            inputs += ["-c:v", "libvpx-vp9", "-i", str(MATTE)]
+            m = inputs.count("-i") - 1
+            win = "+".join(f"between(t,{a},{b - 0.001:.3f})" for a, b in behind_windows())
+            fg.append(f"[{m}:v]alphaextract,scale={W}:{H}:flags=bicubic,fps={OUT_FPS},format=gray[mask]")
+            fg.append(f"[base1][mask]alphamerge[person]")
+            fg.append(f"{last}[person]overlay=0:0:eof_action=pass:enable='{win}'[vp]")
+            last = "[vp]"
         if not p.exists():
             print(f"  ! falta, se omite: {p.name}")
             continue
+        if p.suffix == ".webm":
+            inputs += ["-c:v", "libvpx-vp9"]
         inputs += ["-i", str(p)]
         idx = inputs.count("-i") - 1
         fg.append(f"[{idx}:v]format=yuva420p,scale={W}:{H},fps={OUT_FPS},setpts=PTS-STARTPTS+{t}/TB[ov{k}]")
@@ -572,6 +665,7 @@ if __name__ == "__main__":
     elif c == "words": cmd_words()
     elif c == "captions": cmd_captions()
     elif c == "base": cmd_base(reuse)
+    elif c == "matte": cmd_matte()
     elif c == "stills": cmd_stills(rest[0], rest[1:])
     elif c == "anim": cmd_anim(rest)
     elif c == "capt": cmd_capt()

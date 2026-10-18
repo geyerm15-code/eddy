@@ -29,6 +29,13 @@ Luego arrastra tu video: `Eddy, hazme un reel con animaciones de este video`.
 
 Requiere plan Pro, Max, Team o Enterprise. Recomendado: videos de 15 a 90 s.
 
+## Efectos sobre la persona (Claude Code)
+
+Zoom digital en palabras clave, iPhone flotante, checklist de vidrio, notas y titulares **detrás de ti**,
+gráfico que crece, portada de revista y letras de vidrio. Pídelos por nombre:
+`Eddy, hazme el reel con letras de vidrio detrás de mí que digan WEB`. Recortar a la persona usa
+[HyperFrames](https://www.npmjs.com/package/hyperframes) con IA local (`npx`, sin instalar nada a mano).
+
 ## Analizar un video → prompt de Omni Flash
 
 Sube un video de referencia (motion graphics, demo, explainer) y pide:

@@ -91,4 +91,33 @@ const TechCaptions: React.FC = () => {
   );
 };
 
-export const Captions: React.FC = () => ((data as {style?: string}).style === 'tech' ? <TechCaptions /> : <BrandCaptions />);
+// Modo "karaoke" (captions_mode en studio.json): lo ya dicho en una línea chica arriba y la palabra que se está
+// diciendo en grande debajo, en blanco con sombra suave. Combina con el efecto digital zoom.
+const KaraokeCaptions: React.FC = () => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const t = frame / fps;
+  const cue = data.cues.find((c) => t >= c.start && t < c.end);
+  if (!cue) return <AbsoluteFill><VFonts /></AbsoluteFill>;
+  let cur = 0;
+  cue.words.forEach((w, i) => { if (t >= w.start - 0.03) cur = i; });
+  const w = cue.words[cur];
+  const p = easeOutBack(clamp((t - (w.start - 0.03)) / 0.16));
+  const said = cue.words.slice(0, cur).map((x) => x.text).join(' ');
+  const soft = '0 2px 4px rgba(0,0,0,.5), 0 6px 24px rgba(0,0,0,.45)';
+  return (
+    <AbsoluteFill style={{background: 'transparent'}}>
+      <VFonts />
+      <div style={{position: 'absolute', left: 60, right: 60, top: 1190, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6}}>
+        <div style={{height: 60, fontFamily: BODY, fontWeight: 600, fontSize: 44, color: 'rgba(255,255,255,.78)', whiteSpace: 'nowrap', textShadow: soft}}>{said}</div>
+        <div style={{fontFamily: BODY, fontWeight: 800, fontSize: 124, lineHeight: 1.05, letterSpacing: '-0.02em', color: '#fff', whiteSpace: 'nowrap',
+          textShadow: soft, transform: `scale(${0.86 + 0.14 * p})`, opacity: clamp(p * 1.4)}}>{w.text.replace(/[,.;:]$/, '')}</div>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+export const Captions: React.FC = () => {
+  const st = (data as {style?: string}).style;
+  return st === 'tech' ? <TechCaptions /> : st === 'karaoke' ? <KaraokeCaptions /> : <BrandCaptions />;
+};

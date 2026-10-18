@@ -13,6 +13,9 @@ Si el pedido es analizar un video de referencia o generar un prompt de Omni Flas
 los 9 puntos por beat, la Fase 3 aplicada dentro del prompt, y entrega el prompt final en un único bloque en
 inglés. Si faltan los cambios de la Fase 3 y nadie puede responder, recrea fiel y dilo en el reporte.
 
+Si pide efectos sobre la persona (texto detrás, vidrio, portada, iPhone, checklist, gráfico, zoom digital),
+sigue `references/efectos.md`: corre `matte` antes de las escenas `behind` y revisa los stills con la persona encima.
+
 Criterio editorial:
 - Hook en los primeros 3 s que prometa el resultado; elimina todo lo que no sume (silencios, repeticiones, "eh").
 - Una idea por escena, beats en la palabra exacta, textos en pantalla de ≤6 palabras.
